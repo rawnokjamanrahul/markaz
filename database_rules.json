@@ -1,0 +1,47 @@
+{
+  "rules": {
+    ".read": false,
+    ".write": false,
+
+    "admins": {
+      "$uid": {
+        ".read": "auth != null && auth.uid === $uid",
+        ".write": false
+      }
+    },
+
+    "users": {
+      ".read": "auth != null && root.child('admins').child(auth.uid).exists()",
+      "$uid": {
+        ".read": "auth != null && auth.uid === $uid",
+        ".write": "auth != null && root.child('admins').child(auth.uid).exists()"
+      }
+    },
+
+    "members": {
+      ".read": "auth != null",
+      "$id": {
+        ".write": "auth != null && (root.child('admins').child(auth.uid).exists() || (!data.exists() && newData.child('status').val() === 'pending' && newData.child('addedBy').val() === auth.uid && newData.child('area').val() === root.child('users').child(auth.uid).child('area').val()))"
+      }
+    },
+
+    "positionRequests": {
+      ".read": "auth != null",
+      "$id": {
+        ".write": "auth != null && (root.child('admins').child(auth.uid).exists() || (!data.exists() && newData.child('status').val() === 'pending' && newData.child('by').val() === auth.uid && newData.child('area').val() === root.child('users').child(auth.uid).child('area').val()))"
+      }
+    },
+
+    "jamats": {
+      ".read": "auth != null",
+      "$id": {
+        ".write": "auth != null && (root.child('admins').child(auth.uid).exists() || (!data.exists() && newData.child('status').val() === 'pending' && newData.child('applicantUid').val() === auth.uid && newData.child('area').val() === root.child('users').child(auth.uid).child('area').val()))"
+      }
+    },
+
+    "notices": {
+      ".read": "auth != null",
+      ".write": "auth != null && root.child('admins').child(auth.uid).exists()"
+    }
+  }
+}

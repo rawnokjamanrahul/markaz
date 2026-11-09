@@ -1,0 +1,66 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() { return request.auth != null; }
+    function isAdmin() {
+      return signedIn() && exists(/databases/$(database)/documents/admins/$(request.auth.uid));
+    }
+    function myArea() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.area;
+    }
+    function isActiveUser() {
+      return signedIn()
+        && exists(/databases/$(database)/documents/users/$(request.auth.uid))
+        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('active', true) != false;
+    }
+
+    // এডমিন তালিকা: নিজের ডকুমেন্ট শুধু নিজে পড়তে পারে, লেখা যায় না (Console থেকে বানাতে হবে)
+    match /admins/{uid} {
+      allow read: if signedIn() && request.auth.uid == uid;
+      allow write: if false;
+    }
+
+    // ইউজার প্রোফাইল
+    match /users/{uid} {
+      allow read: if isAdmin() || (signedIn() && request.auth.uid == uid);
+      allow write: if isAdmin();
+    }
+
+    // মেম্বার: ইউজার শুধু নিজ এলাকার জন্য pending যোগ করতে পারে
+    match /members/{id} {
+      allow read: if isAdmin() || isActiveUser();
+      allow create: if isAdmin() || (isActiveUser()
+        && request.resource.data.status == 'pending'
+        && request.resource.data.addedBy == request.auth.uid
+        && request.resource.data.area == myArea());
+      allow update, delete: if isAdmin();
+    }
+
+    // পজিশন রিকুয়েস্ট
+    match /positionRequests/{id} {
+      allow read: if isAdmin() || isActiveUser();
+      allow create: if isAdmin() || (isActiveUser()
+        && request.resource.data.status == 'pending'
+        && request.resource.data.by == request.auth.uid
+        && request.resource.data.area == myArea());
+      allow update, delete: if isAdmin();
+    }
+
+    // জামাত আবেদন
+    match /jamats/{id} {
+      allow read: if isAdmin() || isActiveUser();
+      allow create: if isAdmin() || (isActiveUser()
+        && request.resource.data.status == 'pending'
+        && request.resource.data.applicantUid == request.auth.uid
+        && request.resource.data.area == myArea());
+      allow update, delete: if isAdmin();
+    }
+
+    // নোটিস: সবাই পড়বে, শুধু এডমিন লিখবে
+    match /notices/{id} {
+      allow read: if isAdmin() || isActiveUser();
+      allow write: if isAdmin();
+    }
+  }
+}
